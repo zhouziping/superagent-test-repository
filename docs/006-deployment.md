@@ -48,7 +48,16 @@ Both presets run with `danger-full-access` as the operator's OS user and read me
 
 ### Feishu bot (optional)
 
-1. Create a self-built app with the bot capability. Grant it the permissions to receive message events, read and send chat messages, and read chat members, then publish the app version.
+1. Create a self-built app with the bot capability. Subscribe to `im.message.receive_v1` (the **Receive message v2.0** event), grant permissions to read and send chat messages and read chat members, then publish the app version. Choose the group-message permission for the senders you need:
+
+   | Group messages to receive | Permission |
+   | --- | --- |
+   | Mentions from users **and other bots** | `im:message.group_at_msg.include_bot:readonly` |
+   | All messages from users **and other bots** | `im:message.group_msg.include_bot:read` |
+   | Mentions from users only | `im:message.group_at_msg:readonly` |
+   | All messages from users only | `im:message.group_msg` |
+
+   The user-only permissions do not deliver other bots' messages. Direct messages require their own permission, such as `im:message.p2p_msg:readonly`. See Feishu's [Receive message event documentation](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive) for the current permission requirements.
 2. Give the bot its own `lark-cli` configuration, restricted to the bot identity, and a wrapper:
 
    ```sh
@@ -67,6 +76,19 @@ Both presets run with `danger-full-access` as the operator's OS user and read me
    The host refuses a CLI that can act as a user. It reads the app id, Feishu/Lark brand and bot `open_id` from the bot configuration.
 
    Both configurations share the keychain entry for the app secret. To remove only the bot configuration, delete its directory; do not run `lark-cli config remove`, which would affect the shared secret.
+
+### Receiving group mentions from other bots
+
+User and bot mentions use the same event consumer; no second event subscription or user login is needed. To enable bot mentions:
+
+1. Have the Feishu app administrator grant `im:message.group_at_msg.include_bot:readonly` and publish the updated app version. If the Source must receive every group message, use `im:message.group_msg.include_bot:read` instead.
+2. Add the receiving bot to the group and configure that group in **Sources → Feishu** with **@ only** (or **All** when needed). The Source's receive mode does not grant Feishu app permissions.
+3. In **Policy → On each Source → Feishu → Bots whose messages may become candidates**, list the sending bot's ID. Live events identify senders by `open_id` (`ou_…`); history can identify an app by App ID (`cli_…`). The list matches exact IDs, not aliases: list both IDs when both forms are returned for the same sender. Do not put bots in the human-user list.
+4. Enable inferred assessment (`observe` to assess without starting work, or `auto` with an applicable enabled rule to authorize work), then have the sending bot mention the receiving bot in the group.
+
+A listed bot's mention is an **inferred candidate**, not a human instruction. Unlisted bots cannot originate work, and bot messages cannot stop Tickets. The agent drops its own messages to avoid self-triggering. Messages on an existing subscribed Thread still arrive as context, without granting new authority.
+
+If user mentions arrive but bot mentions do not, first check the app's published include-bot permission. If the event arrives but cannot become a candidate, check the sender ID in the bot list, the Source's chat scope and the inferred assessment mode. Repository changes cannot grant app permissions; an administrator must do that in Feishu.
 
 ## Install
 
