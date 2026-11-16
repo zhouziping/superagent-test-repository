@@ -1,6 +1,6 @@
 ---
 name: dsh-superagent-feishu
-description: Read Feishu messages, threads, nested forwards, attachments and documents using the bot identity.
+description: Read Feishu context and address people or collaborating bots with native mentions using the bot identity.
 ---
 
 A worker's messages carry each Trigger; read trigger/<id> with orchestrator_read when one is cut or you need its context. Its context references read the source message, its thread's first message, the message it answers, its thread, and the chat around it: feishu/<trigger-id>/message, /root, /parent, /thread and /around. A message outside a thread has none; /around reads its chat by time: the five messages before it, the message and the five after it, then earlier pages through next_resource. For ambiguous requests such as “fix the above”, read the parent or root (including merged forwards), the thread or the chat around the message before implementation.
@@ -10,3 +10,11 @@ A read answers `{ status, message }` or `{ status, messages, next_resource }`. A
 Resource placeholders and links are not their contents: use the CLI instructions included in this skill and lark-cli to follow nested messages and fetch relevant attachments and documents within bot access; try available sources and reasonable alternatives before escalating a specific missing resource that actually blocks completion.
 
 Routing and trigger reads include `source_url` when available: use that exact original-message link as the source reference when creating a related issue or PR. Do not substitute the chat or root-message link for a follow-up. If only `source_url_read` is present, read that resource for `message.message_app_link`; if unavailable, retain the trigger reference rather than inventing a URL. Links do not grant recipients access to the conversation.
+
+## Asking a collaborator
+
+For a necessary action within an authorized ticket, put the request in `orchestrator_report.human_action`; the orchestrator delivers it in the ticket's original conversation (or the human message identified by `question_for_trigger_id`). Include a native mention as `<at user_id="ou_xxx">Name</at>` for each intended person or other bot, not plain `@Name` or a Markdown link. The existing `--markdown` reply transport passes inline mention tags to Feishu. Do not escape the tags or put them in a code block in the actual request.
+
+Resolve identities in the destination chat using read-only CLI discovery: start with `lark-cli im +chat-members-list --help`, then list the chat's `user` and/or `bot` participants with `--as bot`. Check all pages/truncations before concluding a match is absent or unique. Use the participant's actual `member_id`/open ID (`ou_...`) from that chat, including for bots; do not substitute a bot's `app_id` (`cli_...`), invent an ID from its display name, or mention everyone. Escape `&`, `<`, `>` in display names inside the tag. If the identity is ambiguous or inaccessible, ask the requester to identify the intended participant rather than pinging an arbitrary match. Never change policy membership, credentials or chat configuration to find or contact someone.
+
+Use `state=waiting` once no independent work remains, and ask for a reply in the same thread. Waiting keeps the ticket open and allows subscribed human and bot replies to reach its worker; it does not authorize new work from bots. Clear the fulfilled request with `human_action:null`. Do not use CLI to bypass the structured send path, poll for a response, repeatedly ping, or claim that a sent mention proves the recipient handled the request. Mention rendering, notification, and whether another bot receives or responds to the message depend on Feishu permissions and that bot's integration; a mention cannot guarantee a bot will run.
