@@ -20,6 +20,14 @@ A `person` stage means the Ticket cannot continue without human input. A new hum
 
 An `idle` Ticket has finished its turn without an outstanding question. A Trigger on a subscribed Thread can continue it.
 
+## Asking for cooperation in Feishu
+
+A worker may ask a person or another bot for a concrete action needed by its authorized Ticket. It reports the short request in `human_action`, including native mentions such as `<at user_id="ou_member">Name</at>`. The orchestrator preserves those tags in its attention reply; plain `@Name` is only text. Resolve the actual user or bot open ID from the destination chat's members, not from a display-name guess or a bot's app ID. The Feishu skill describes discovery and identity checks.
+
+Use `progress` while independent work remains, or `waiting` and end the turn when only the reply remains. A `waiting` Report alone stays internal; a structured request still reaches the orchestrator for delivery. The existing Attention takes precedence over `idle` in the stage table. Unlike `blocked`/`failed`, waiting does not hold automated Inputs, so a collaborating bot's reply on a subscribed Thread can continue the worker. Clear the fulfilled request with `human_action:null`. There is no repeated ping or worker polling loop.
+
+Replies remain context under the existing Mandate: mentioning someone does not let them authorize new work, bypass Policy or lift an explicit human stop. A native mention also does not guarantee notification or another bot's execution; that depends on Feishu permissions and the recipient's integration. The runtime does not change deployment configuration or send requests outside the Ticket's reply route.
+
 ## The Executor
 
 Each Ticket gets an Executor Session named `worker-<ticket id>` and a directory named after the Ticket's short name. Directories are created under the configured execution root, which defaults to `<stateDir>/work`.

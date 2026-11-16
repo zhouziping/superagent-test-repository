@@ -417,6 +417,47 @@ it('relays a worker\'s report with its ticket card and the start of its summary,
   expect(notices().at(-1)).toMatchObject({ ticket_ended: { ticket_id: ticket.id, state: 'completed' } })
 })
 
+it('delivers a native user/bot mention request once and continues waiting work on a bot reply as context', async () => {
+  const { ticket, trigger, sessionId } = await h.acceptedTicket(feishu('1', '@bot Coordinate this fix'))
+  const request = '<at user_id="ou_alice">Alice</at> and <at user_id="ou_helper">Helper</at>, please confirm the result in this thread.'
+  const report = { state: 'waiting', summary: 'Needs collaborator confirmation.', human_action: request }
+  expect(await h.runTool(sessionId, 'orchestrator_report', report)).toMatchObject({ notification: 'orchestrator', attention: { question: request } })
+  await h.runtime.idle()
+  expect(relaysOf('worker_attention').at(-1)).toMatchObject({ state: 'waiting', ticket: { attention: { question: request } } })
+  const reply = { purpose: 'attention', ticket_id: ticket.id, human_action: request, text: request }
+  const lark = vi.mocked(Commands.prototype.lark)
+  lark.mockClear()
+  await h.runTool(h.runtime.masterId, 'orchestrator_reply', reply)
+  await h.runTool(sessionId, 'orchestrator_report', report)
+  await h.runTool(h.runtime.masterId, 'orchestrator_reply', reply)
+  const sends = lark.mock.calls.filter(([args]) => args.includes('+messages-reply'))
+  expect(sends).toHaveLength(1)
+  expect(sends[0]![0]).toEqual(['im', '+messages-reply', '--message-id', trigger.meta.messageId, '--markdown', request,
+    '--reply-in-thread', '--idempotency-key', expect.any(String)])
+  const response = feishu('2', 'Confirmed the result.', { sender_type: 'bot', sender_id: 'ou_helper', root_id: 'om_1', mentions: [] })
+  const delivery = h.deliveries.mock.calls.length
+  h.runtime.receive(response); await h.runtime.idle()
+  expect(h.deliveries.mock.calls.slice(delivery).map(([call]) => call))
+    .toContainEqual(expect.objectContaining({ sessionId, text: expect.stringContaining(response.id) }))
+  expect(response.human).toBe(false)
+  expect(h.runtime.store.tickets.get(ticket.id)!.assignments.at(-1)!.report!.state).toBe('waiting')
+  await expect(h.runTool(sessionId, 'orchestrator_ack', { trigger_id: response.id, text: 'Received.' })).rejects.toThrow('original human trigger')
+  await h.runTool(sessionId, 'orchestrator_report', { state: 'progress', summary: 'Assessed the confirmation; continuing the original fix.', human_action: null })
+  expect(h.runtime.store.tickets.get(ticket.id)!.attention).toBeUndefined()
+  expect(h.runtime.store.tickets.get(ticket.id)!.ended).toBeUndefined()
+})
+
+it('keeps a waiting report without a new request internal and leaves the ticket open', async () => {
+  const { ticket, sessionId } = await h.acceptedTicket(feishu('1', '@bot Fix this'))
+  await h.runtime.idle()
+  const before = relaysOf('worker_report').length
+  expect(await h.runTool(sessionId, 'orchestrator_report', { state: 'waiting', summary: 'Waiting for subscribed context.' }))
+    .toEqual({ reported: true, notification: 'internal_only' })
+  await h.runtime.idle()
+  expect(relaysOf('worker_report')).toHaveLength(before)
+  expect(h.runtime.store.tickets.get(ticket.id)!.ended).toBeUndefined()
+})
+
 it('tells the main Session of the settings, prompts, requeues and unsubscriptions others made, never of its own', async () => {
   const save = (args: Record<string, unknown>) => h.runTool(h.runtime.masterId, 'orchestrator_settings_save', args)
   const evaluation = h.runtime.store.settings().eval

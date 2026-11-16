@@ -75,9 +75,9 @@ export function executorTools(host: ExecutorToolsHost, ticket: Ticket): Tool[] {
       name: 'orchestrator_report',
       description: 'Report progress, ready, blocked, failed or dropped, as the work and handoff sections say.',
       schema: z.object({
-        state: z.enum(['progress', 'ready', 'blocked', 'failed', 'dropped']),
+        state: z.enum(['progress', 'waiting', 'ready', 'blocked', 'failed', 'dropped']).describe('Use waiting when a collaborator must reply on this ticket\'s thread; unlike blocked, bot replies can continue it.'),
         summary: z.string().min(1),
-        human_action: z.string().trim().min(1).max(1000).nullish().describe('One concrete question for a person, also with state=progress; omit to keep the pending one, null to clear it.'),
+        human_action: z.string().trim().min(1).max(1000).nullish().describe('One concrete question or action for a person or collaborating bot, also with progress or waiting. For Feishu, include verified <at user_id="ou_...">name</at> mentions when needed. Omit to keep the pending request, null to clear it.'),
         question_for_trigger_id: z.string().optional().describe('With human_action: the human message that raised the question, which is asked where that person wrote.'),
         pr_number: z.number().int().positive().nullish().describe(`The ticket's PR: its source PR, or one by ${host.github.deployment.github.login} from a branch named after this ticket (DSH_SUPERAGENT_NAME).`),
         reply_to_trigger_id: z.string().optional().describe('The explicit human question this report answers; never for ordinary progress.'),
