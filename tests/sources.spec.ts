@@ -1081,7 +1081,7 @@ describe('feishu event consumer', () => {
     const deps: SourceContextDeps = { store, engine, outbox: { send: () => {} }, commands, sources, deployment, ready: Promise.resolve(), configured: () => true,
       receive: (trigger: Trigger) => engine.receive(trigger) }
     const turnOff = () => store.saveSettings(SettingsSchema.parse({ sources: { feishu: { enabled: false, config: { chats: [] } } } }))
-    return { ctx: sourceContextOf(deps, feishuKind), health, store, turnOff }
+    return { ctx: sourceContextOf(deps, feishuKind), health, store, sources, turnOff }
   }
 
   /** A message event line as `event consume` prints it; a group message mentions the bot. */
@@ -1097,6 +1097,35 @@ describe('feishu event consumer', () => {
     expect(['om_1', 'om_2'].map(id => store.triggers.get(feishuTriggerId(id))?.meta.direct)).toEqual([false, true])
     expect(store.get(KV.feishu.chats)).toEqual({ oc_group: false, oc_dm: true })
     expect(health.feishu).toMatchObject({ state: 'error', detail: expect.stringContaining('JSON') })
+    controller.abort(); await running; store.close()
+  }, 20_000)
+  it('receives bot-authored group mentions without granting them human authority or accepting self messages', async () => {
+    const message = (id: string, sender: string, target = 'ou_bot') => JSON.stringify({
+      ...JSON.parse(event(id, 'oc_group', 'group')), sender_id: sender, sender_type: 'bot',
+      content: '@_user_1 check this', mentions: [{ id: target, key: '@_user_1', name: 'Bot' }],
+    })
+    writeFileSync(join(dir, 'events'), [message('om_listed', 'ou_alerts'), message('om_unknown', 'ou_unknown'),
+      message('om_self', 'ou_bot'), message('om_self_app', 'cli_bot'),
+      message('om_app_mention', 'ou_alerts', 'cli_bot'), event('om_human', 'oc_group', 'group')].join('\n') + '\n')
+    const { ctx, store, sources } = consumerSource(cli('events'), { chats: [{ chatId: 'oc_group', listen: 'mentions' }] })
+    const settings = store.settings()
+    store.saveSettings(SettingsSchema.parse({ ...settings, eval: { ...settings.eval, mode: 'observe' },
+      policy: { ...settings.policy, sources: { feishu: { allowed: [{ id: MEMBER }], bots: [{ id: 'ou_alerts' }] } } } }))
+    running = runFeishu(ctx, controller.signal)
+    await vi.waitFor(() => expect(store.triggers.get(feishuTriggerId('om_human'))).toBeDefined(), until)
+    const gate = (id: string) => {
+      const trigger = store.triggers.get(feishuTriggerId(id))!
+      return settingsPolicy(store.settings(), sources).gate(trigger, store.threads.get(`feishu:oc_group:${id}`)!, [])
+    }
+    expect(store.triggers.get(feishuTriggerId('om_listed'))).toMatchObject({ human: false,
+      addressed: 'mention', actor: { id: 'ou_alerts' }, text: '@Bot check this' })
+    for (const id of ['om_listed', 'om_app_mention']) expect(gate(id)).toMatchObject({ admissible: true,
+      strength: 'inferred', basis: { via: 'bot', addressed: 'mention', observation: { mode: 'observe' } } })
+    expect(gate('om_unknown')).toEqual({ admissible: false, reason: 'not_human' })
+    expect(gate('om_human')).toMatchObject({ admissible: true, strength: 'explicit' })
+    for (const id of ['om_self', 'om_self_app']) expect(store.triggers.get(feishuTriggerId(id))).toBeUndefined()
+    store.saveSettings({ ...store.settings(), eval: { ...store.settings().eval, mode: 'off' } })
+    expect(gate('om_listed')).toEqual({ admissible: false, reason: 'admission_ignored' })
     controller.abort(); await running; store.close()
   }, 20_000)
   it('does not erase a stdout event error when stderr readiness arrives later', async () => {
