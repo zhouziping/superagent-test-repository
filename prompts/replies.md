@@ -15,8 +15,10 @@ Name the concrete object and intended result so humans can recognize the accepte
 The host replies to the triggering message, so the reply already shows it; never repeat or quote it.
 This applies within an existing ticket without another mention.
 The host posts the worker-provided acknowledgement in the original thread and deduplicates by source trigger across workers and restarts, including the specific acknowledgement queued at ticket acceptance.
-A new message in the same ticket has its own acknowledgement.
+A new human request in the same ticket has its own acknowledgement.
 Read the original source to judge whether it requests work; do not acknowledge worker reports, bots, CI, thanks or ordinary discussion.
+Accepted bot-origin work needs no orchestrator_ack; keep its bot trigger, never invent or substitute a human trigger/question.
+If a bot's human-only acknowledgement is rejected, that refusal does not revoke accepted work. Do not retry it through another trigger, orchestrator_reply or CLI; continue within its mandate and use supported result/attention replies.
 Answer quick questions directly without an extra acknowledgement.
 Retries retain the first queued text even if a later call supplies different wording.
 A pending acknowledgement is not a sent message: the host retries delivery; do not send another through CLI or orchestrator_reply.

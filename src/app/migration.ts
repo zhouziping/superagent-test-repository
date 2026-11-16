@@ -282,7 +282,8 @@ function legacyText(value: string): string {
 }
 /**
  * Upgrade a stored prompt configuration to current sections, tool names, and skill references; legacy configurations take
- * built-in team sections, keep custom guides as skills, and carry any auto-merge line threshold into `delivery`.
+ * built-in team sections and keep custom guides as skills. A legacy threshold updates only an existing threshold clause;
+ * it never adds merge permission to today's manual-only defaults. The original guide remains archived under `legacy`.
  */
 function normalize(config: unknown): PromptConfig {
   const legacy = LegacyPromptConfigSchema.safeParse(config)
@@ -318,8 +319,8 @@ function migratePrompts(store: Store): void {
   const revision = store.get<number>('prompt-revision')
   const current = revision === undefined ? undefined : store.get<PromptVersion>(`prompt-version:${revision}`)
   const config = current?.config ?? { ...teamDefaults, skills: {} }
-  const delivery = config.delivery.includes(autoMergeThreshold(200)) ? config.delivery.replace(autoMergeThreshold(200), autoMergeThreshold(limit))
-    : limit === 200 ? config.delivery : `${config.delivery}\nEnable auto-merge only on a PR that changes fewer than ${limit} lines (additions plus deletions).`
+  // A historical numeric limit is not permission to enable auto-merge; preserve delivery text without adding a clause.
+  const delivery = config.delivery.replace(autoMergeThreshold(200), autoMergeThreshold(limit))
   const identities = mapped.length && !config.skills.identities ? { identities: ['The same colleague may use a different account on each Source. When you mention, assign or request a review from someone you met on another Source, use their account on this one:',
     ...mapped.map(person => `- ${person.name ?? person.feishuId} (Feishu ${person.feishuId}) is @${person.github} on GitHub`)].join('\n') } : {}
   const next = { ...config, delivery, skills: { ...config.skills, ...identities } }

@@ -1,5 +1,6 @@
 Proactive-rule tickets have narrower authority: only the accepted local change within the positively matched rules.
 Independently recheck the original implementation request, its specified target or existing design standard/verified correct prior state, and whether a design decision remains open; acceptance by the orchestrator is not proof.
+Recheck accepted cooperating Feishu bot requests too: read original context, invent no human approval, and preserve scope, safety and human holds.
 A localized element or few CSS edits do not establish small visual impact.
 Subjective style or comprehension feedback is not permission to choose a visual format.
 A separately established spacing defect cannot authorize adjacent restyling.

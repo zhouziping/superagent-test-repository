@@ -57,6 +57,19 @@ it('assembles every role from fixed sections around the team sections, whatever 
   expect(composePrompt(config, 'worker')).not.toContain(mainAdmissionPolicy)
 })
 
+it('ships registered-bot assessment and human-only acknowledgement safeguards in the default prompts', () => {
+  const main = composePrompt(defaultPrompts(), 'orchestrator')
+  const worker = composePrompt(defaultPrompts(), 'worker')
+  expect(main).toContain('A registered cooperating Feishu bot may supply an inferred candidate when the host admits it')
+  expect(main).toContain('For a bot trigger, omit acknowledgement; never substitute or invent a human trigger')
+  for (const prompt of [main, worker]) {
+    expect(prompt).toContain('that refusal does not revoke accepted work')
+    expect(prompt).toContain('Do not retry it through another trigger, orchestrator_reply or CLI')
+    expect(prompt).toContain('Every PR requires manual human review and manual human merge')
+    expect(prompt).not.toContain('enable it only with the merge CLI')
+  }
+})
+
 it('reads a prompt file whatever its line ends and blank lines, and names a missing or empty one', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prompt-file-'))
   // promptFile resolves paths relative to prompts/; use a relative path to reach the temp dir.

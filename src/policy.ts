@@ -219,8 +219,8 @@ export function settingsPolicy(settings: Settings, sources: SourceScope): Policy
       const rulesOn = (rules: string[] | undefined) => (rules ?? []).every(id => settings.policy.rules.some(rule => rule.enabled && rule.id === id))
       // Explicit follow-ups remain valid; inferred follow-ups require auto mode and enabled matched rules.
       if (basis.via === 'followup') return mandate.strength === 'explicit' || (mode === 'auto' && rulesOn(basis.rules))
-      // A bot's candidate holds only while the bot remains on its Source's bot list and passes the observation checks below.
-      if (basis.via === 'bot' && !listedBot(settings, mandate.actor)) return false
+      // A bot's candidate must still be receivable: removing all-message observation also revokes an unaddressed relay.
+      if (basis.via === 'bot' && (!listedBot(settings, mandate.actor) || (current && !basis.addressed && !current.observed))) return false
       // An admission-table Mandate holds while the sender's current cell still grants at least the original strength.
       if (basis.via === 'admission') {
         const { cell } = basis

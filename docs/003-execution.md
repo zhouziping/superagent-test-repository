@@ -26,7 +26,9 @@ A worker may ask a person or another bot for a concrete action needed by its aut
 
 Use `progress` while independent work remains, or `waiting` and end the turn when only the reply remains. A `waiting` Report alone stays internal; a structured request still reaches the orchestrator for delivery. The existing Attention takes precedence over `idle` in the stage table. Unlike `blocked`/`failed`, waiting does not hold automated Inputs, so a collaborating bot's reply on a subscribed Thread can continue the worker. Clear the fulfilled request with `human_action:null`. There is no repeated ping or worker polling loop.
 
-Replies remain context under the existing Mandate: mentioning someone does not let them authorize new work, bypass Policy or lift an explicit human stop. A native mention also does not guarantee notification or another bot's execution; that depends on Feishu permissions and the recipient's integration. The runtime does not change deployment configuration or send requests outside the Ticket's reply route.
+Replies remain context under the existing Mandate: mentioning someone does not let them authorize new work, bypass Policy or lift an explicit human stop or request to wait. Independently, a registered cooperating Feishu bot's eligible message may go through enabled-rule assessment as an inferred candidate; it is never an explicit human request. A positive assessment does not remove the worker's duty to verify original implementation intent and a settled target. A native mention also does not guarantee notification or another bot's execution; that depends on Feishu permissions and the recipient's integration. The runtime does not change deployment configuration or send requests outside the Ticket's reply route.
+
+For accepted bot-origin work, human-only `orchestrator_ack` is neither required nor supported. Preserve the real bot trigger; a refused acknowledgement does not revoke the accepted Mandate and is not grounds to fabricate a human source. The orchestrator delivers an eligible ready result or necessary structured attention through supported reply purposes. Never bypass a refused reply with CLI sends or relabel a bot message as a human question. Report a concrete delivery limitation internally if the supported route is unavailable; do not change deployment settings or publish private Feishu context.
 
 ## The Executor
 
@@ -89,13 +91,11 @@ These wrappers and directories establish defaults, not a security boundary. A wo
 
 ## Merging
 
-Auto-merge is governed by the **Delivery requirements** prompt. The host has no merge-specific decision logic.
+The **Delivery requirements** prompt requires manual human review and manual human merge for every pull request, including work accepted from a cooperating bot's inferred request. The Executor must not merge, enable auto-merge or arrange an automatic merge. Another account, credential or merge CLI, a small diff, passing CI or existing approvals is not an exception.
 
-By default, the Executor never enables auto-merge as the agent account: GitHub attributes the merge to whoever enabled it. Delivery requirements must name another account's CLI for merging. Without one, people merge the pull request.
+Report a self-reviewed, validated PR as ready for human review without waiting for approval or merge, and state that human review and manual merge remain required. Required approvals must cover the current head commit, with the prompt's existing exception for an unchanged-tree reviewer-credit rewrite; bot feedback is not human approval.
 
-The default instructions allow auto-merge only for a pull request opened for the Ticket, when it is ready, the required approvals cover the head commit, and additions plus deletions total fewer than 200 lines. Before pushing another revision, the Executor withdraws auto-merge.
-
-Reviews without a body, such as approvals, also arrive as Triggers and can wake an Executor waiting for review. These instructions govern the agent, not GitHub's merge rules. To enforce approvals, require them in branch protection and dismiss stale approvals. Omit the merge CLI or remove the auto-merge paragraph to require manual merging.
+Reviews without a body, such as approvals, also arrive as Triggers and can wake an Executor waiting for review. These instructions govern the agent; the host has no merge-specific decision logic. They do not change GitHub protection or deployment settings.
 
 ## How a Ticket ends
 

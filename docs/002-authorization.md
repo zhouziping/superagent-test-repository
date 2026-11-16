@@ -76,7 +76,11 @@ The admission table is part of the Policy version. Weakening a cell does not imm
 
 ### Bots and automated reviewers
 
-The host recognizes GitHub Apps, logins ending in `[bot]`, and Feishu bots as bots. A Source can list bots such as `dependabot[bot]` whose messages may become inferred candidates. They must either address the agent or post in a scope that receives every message. They cannot make explicit requests or stop Tickets.
+The host recognizes GitHub Apps, logins ending in `[bot]`, and Feishu bots as bots. A Source can list bots such as `dependabot[bot]` or registered cooperating Feishu bots whose messages may become inferred candidates. They must either address the agent or post in a scope that receives every message. They cannot make explicit requests or stop Tickets.
+
+A registered cooperating Feishu bot is eligible for assessment, not automatically accepted. In `auto` mode, acceptance requires judging every enabled rule, at least one positive match, original implementation intent for this project, and a specified target or established correct state with no unresolved design decision. The worker independently rechecks that source intent and settled target. Registration, a mention or a bot's assertion of human approval cannot substitute for this assessment, expand scope or lift an explicit human hold.
+
+Human-only acknowledgement is separate from authorization. Keep the original bot trigger: do not call `orchestrator_ack` on it, fabricate a human trigger or select an unrelated human message. A refused human-only acknowledgement does not revoke an already accepted Mandate. Continue only the accepted work and use supported structured result/attention delivery, never CLI sends or a fabricated human question to bypass reply checks. Manual human review and manual merge still apply.
 
 An automated reviewer using an ordinary account counts as a person to the host. Its comments reach subscribed Tickets and generate follow-up notices. Team prompt text must identify such accounts as automated reviewers.
 
@@ -135,7 +139,7 @@ The Source must still listen to the original Thread. The remaining checks depend
 - An explicit follow-up Mandate passes.
 - An inferred Mandate needs `auto` mode and its matched rules still enabled.
 - A Mandate admitted by a table cell must still receive at least its original strength under today's table and sender membership. Removing a sender from the list can therefore revoke a Mandate accepted through the listed-sender cell.
-- A bot's Mandate requires that bot to remain on the Source's bot list. Inferred table and bot Mandates also need `auto` mode and enabled matched rules.
+- A bot's Mandate requires that bot to remain on the Source's bot list and either its original Trigger to have addressed the agent or its current receiving scope to receive every message. An unaddressed bot Trigger therefore loses eligibility if that scope changes to mentions-only. Inferred table and bot Mandates also need `auto` mode and enabled matched rules.
 - Other Mandates require the sender to remain on the Source's allowed list.
 
 If revalidation fails, the Ticket stays ended and takes none of its waiting messages. Each message is treated as having reached no Ticket; if no other Ticket owns it, it goes to Eval. The main Session is not told it reached a worker. This also applies after a processing pause. Attaching to the Ticket is refused, and further work requires a new accept.

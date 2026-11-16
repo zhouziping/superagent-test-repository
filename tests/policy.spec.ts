@@ -461,6 +461,23 @@ describe('bots and events without a sender', () => {
     const unobserved = setup(settings).policy.gate({ ...alert, meta: { chatId: CHAT, direct: false, mentioned: false } }, thread(), [])
     expect(unobserved).toEqual({ admissible: false, reason: 'not_human' })
   })
+  it('revalidates an unaddressed bot relay only while its receiving scope still observes messages', () => {
+    const settings = SettingsSchema.parse({ ...base, policy: { ...base.policy, sources: { ...base.policy.sources,
+      feishu: { ...base.policy.sources.feishu, bots: [{ id: 'cli_relay' }] } } } })
+    const relay = unaddressed({ actor: { source: 'feishu', id: 'cli_relay' }, human: false,
+      meta: { chatId: OBSERVED, direct: false, mentioned: false } })
+    const gate = setup(settings).policy.gate(relay, thread(), [])
+    if (!gate.admissible || gate.basis.via !== 'bot') throw new Error('expected relay admission')
+    const mandate = { strength: gate.strength, actor: relay.actor, policyVersion: '', scope: 'Fix copy',
+      basis: { ...gate.basis, rules: ['copy'] } }
+    expect(setup(settings).policy.revalidate(mandate)).toBe(true)
+    const mentionsOnly = { ...settings, sources: { feishu: feishuSource({
+      chats: [{ chatId: OBSERVED, listen: 'mentions' }], directMessages: false }) } }
+    expect(setup(mentionsOnly).policy.revalidate(mandate)).toBe(false)
+    expect(setup(mentionsOnly).policy.revalidate({ ...mandate, basis: { ...mandate.basis, addressed: 'mention' } })).toBe(true)
+    expect(policyEffects([{ id: 'relay', mandate } as Ticket], settings, mentionsOnly, value => setup(value).sources).get('relay'))
+      .toEqual({ requesterAllowed: false, requester: relay.actor })
+  })
   it('says on the GitHub bot list when a listed bot\'s comment is received: when it mentions the agent, or comments are observed', () => {
     const field = githubKind.policy!.fields.find(item => item.key === 'bots')!
     const comments = githubKind.fields.find(item => item.key === 'observeComments')!.label
